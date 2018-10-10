@@ -1,6 +1,9 @@
 language: rust
 rust:
   - 1.28.0
+env:
+  global:
+    - SCCACHE_DIR=$([ $TRAVIS_OS_NAME = 'linux' ] && echo "$HOME/.cache/sccache" || echo "$HOME/Library/Caches/Mozilla.sccache")
 stages:
   - name: test
     if: branch != docker-build
@@ -19,11 +22,12 @@ jobs:
         - rustup component add rustfmt-preview --toolchain nightly-2018-07-17
       before_script:
         - cargo fetch --verbose
+        - which sccache || cargo install sccache
       script:
         - cargo +nightly-2018-07-17 fmt -- --check || TEST_FAILED=true
-        - test $TEST_FAILED || RUST_BACKTRACE=1 cargo test --verbose --all || TEST_FAILED=true
+        - test $TEST_FAILED || RUSTC_WRAPPER=~/.cargo/bin/sccache RUST_BACKTRACE=1 cargo test --verbose --all || TEST_FAILED=true
         - test $TEST_FAILED || cd test && yarn && yarn lint || TEST_FAILED=true
-        - test $TEST_FAILED || yarn start || TEST_FAILED=true
+        - test $TEST_FAILED || RUSTC_WRAPPER=~/.cargo/bin/sccache yarn start || TEST_FAILED=true
         - "! test $TEST_FAILED"
     - name: test-linux
       os: linux
@@ -36,11 +40,12 @@ jobs:
         - rustup component add rustfmt-preview --toolchain nightly-2018-07-17
       before_script:
         - cargo fetch --verbose
+        - which sccache || cargo install sccache
       script:
         - cargo +nightly-2018-07-17 fmt -- --check || TEST_FAILED=true
-        - test $TEST_FAILED || RUST_BACKTRACE=1 cargo test --verbose --all || TEST_FAILED=true
+        - test $TEST_FAILED || RUSTC_WRAPPER=~/.cargo/bin/sccache RUST_BACKTRACE=1 cargo test --verbose --all || TEST_FAILED=true
         - test $TEST_FAILED || cd test && yarn && yarn lint || TEST_FAILED=true
-        - test $TEST_FAILED || yarn start || TEST_FAILED=true
+        - test $TEST_FAILED || RUSTC_WRAPPER=~/.cargo/bin/sccache yarn start || TEST_FAILED=true
         - "! test $TEST_FAILED"
     - stage: deploy
       name: deploy
@@ -55,6 +60,10 @@ jobs:
           branch: docker-build
 notifications:
   webhooks: https://webhooks.gitter.im/e/71bb03cf9abce5b02c43
-cache: cargo
+cache:
+  directories:
+    - "$HOME/.rustup"
+    - "$HOME/.cargo"
+    - $SCCACHE_DIR
 git:
   depth: 1
