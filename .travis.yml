@@ -61,6 +61,7 @@ jobs:
 notifications:
   webhooks: https://webhooks.gitter.im/e/71bb03cf9abce5b02c43
 cache:
+  timeout: 300
   directories:
     - "$HOME/.rustup"
     - "$HOME/.cargo"
