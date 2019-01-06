@@ -29,6 +29,8 @@ To run CodeChain, just run
 ```
 You can create a block by sending a parcel through [JSON-RPC](https://github.com/CodeChain-io/codechain/blob/master/spec/JSON-RPC.md) or [JavaScript SDK](https://api.codechain.io/).
 
+
+
 ## Formatting
 
 
