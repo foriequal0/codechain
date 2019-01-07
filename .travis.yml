@@ -7,6 +7,8 @@ stages:
   - name: deploy
     if: branch = docker-build
 jobs:
+
+
   include:
     - stage: test
       name: test-osx
