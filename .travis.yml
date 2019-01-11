@@ -6,6 +6,9 @@ stages:
     if: branch != docker-build
   - name: deploy
     if: branch = docker-build
+
+before_install:
+  - .travis/check-doc-change
 jobs:
   include:
     - stage: test
@@ -89,4 +92,4 @@ before_cache:
   - rm -rf $HOME/.cargo/registry
   - rm -rf $TRAVIS_BUILD_DIR/target
 git:
-  depth: 1
+  depth: 50

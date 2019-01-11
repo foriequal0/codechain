@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+set -e
+
+case $TRAVIS_EVENT_TYPE in
+push)
+    if [ "$TRAVIS_BRANCH" = master ]
+    then
+        if git diff --name-only $TRAVIS_COMMIT_RANGE --exit-code
+        then
+            echo "Forward push"
+            COMMIT_RANGE=$TRAVIS_COMMIT_RANGE
+        else
+            # Force push
+            echo "Don't skip for force push"
+            exit 0
+        fi
+    else
+        echo "Branch push"
+        git fetch origin master:master;
+        git log --oneline --decorate --graph --all;
+        BASE=`git merge-base master $TRAVIS_COMMIT`
+        COMMIT_RANGE="$BASE..$TRAVIS_COMMIT"
+    fi
+    ;;
+pull_request)
+    echo "Pull request"
+    COMMIT_RANGE=$TRAVIS_COMMIT_RANGE
+    ;;
+*)
+    echo "Don't skip for api, cron event"
+    exit 0
+    ;;
+esac
+
+git log --oneline --decorate --graph;
+echo "Check doc change for: $COMMIT_RANGE"
+if ! git diff --name-only $COMMIT_RANGE | grep -qvE '^(docs|spec)/'
+then
+  echo "Only docs were updated, or there's no change, not running the CI."
+  terminate_travis 0
+fi
