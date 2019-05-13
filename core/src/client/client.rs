@@ -40,8 +40,8 @@ use rlp::UntrustedRlp;
 use super::importer::Importer;
 use super::{
     AccountData, AssetClient, BlockChainClient, BlockChainInfo, BlockChainTrait, BlockProducer, ChainNotify,
-    ClientConfig, DatabaseClient, EngineClient, EngineInfo, Error as ClientError, ExecuteClient, ImportBlock,
-    ImportResult, MiningBlockChainClient, Shard, StateInfo, StateOrBlock, TextClient,
+    ClientConfig, DatabaseClient, DevelClient, EngineClient, EngineInfo, Error as ClientError, ExecuteClient,
+    ImportBlock, ImportResult, MiningBlockChainClient, Shard, StateInfo, StateOrBlock, TextClient,
 };
 use crate::block::{ClosedBlock, IsBlock, OpenBlock, SealedBlock};
 use crate::blockchain::{BlockChain, BlockProvider, BodyProvider, HeaderProvider, InvoiceProvider, TransactionAddress};
@@ -53,6 +53,7 @@ use crate::scheme::{CommonParams, Scheme};
 use crate::service::ClientIoMessage;
 use crate::transaction::{LocalizedTransaction, PendingSignedTransactions, UnverifiedTransaction};
 use crate::types::{BlockId, BlockStatus, TransactionId, VerificationQueueInfo as BlockQueueInfo};
+use blockchain::TermEnd;
 
 const MAX_MEM_POOL_SIZE: usize = 4096;
 
@@ -846,5 +847,11 @@ impl ChainTimeInfo for Client {
 impl FindActionHandler for Client {
     fn find_action_handler_for(&self, id: u64) -> Option<&ActionHandler> {
         self.engine.find_action_handler_for(id)
+    }
+}
+
+impl DevelClient for Client {
+    fn last_term_end(&self) -> Option<TermEnd> {
+        self.chain.read().last_term_end()
     }
 }

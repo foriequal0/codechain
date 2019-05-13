@@ -200,7 +200,8 @@ pub trait ConsensusEngine: Sync + Send {
         Ok(())
     }
 
-    fn is_term_end(&self, _chain_head: &M::Header, _last_term_end: Option<TermEnd>) -> Option<u64> {
+    /// Whether a block is the end of an term.
+    fn is_term_end(&self, _chain_head: &Header, _last_term_end: Option<TermEnd>) -> Option<u64> {
         None
     }
 

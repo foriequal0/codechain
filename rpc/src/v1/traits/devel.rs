@@ -36,6 +36,9 @@ build_rpc_trait! {
         # [rpc(name = "devel_stopSealing")]
         fn stop_sealing(&self) -> Result<()>;
 
+        # [rpc(name = "devel_lastTermEnd")]
+        fn last_term_end(&self) -> Result<Option<(u64, u64)>>;
+
         # [rpc(name = "devel_getBlockSyncPeers")]
         fn get_block_sync_peers(&self) -> Result<Vec<SocketAddr>>;
 

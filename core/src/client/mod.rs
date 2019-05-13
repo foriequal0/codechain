@@ -49,6 +49,7 @@ use crate::error::BlockImportError;
 use crate::scheme::CommonParams;
 use crate::transaction::{LocalizedTransaction, PendingSignedTransactions};
 use crate::types::{BlockId, BlockStatus, TransactionId, VerificationQueueInfo as BlockQueueInfo};
+use blockchain::TermEnd;
 
 /// Provides various blockchain information, like block header, chain state etc.
 pub trait BlockChainTrait {
@@ -305,4 +306,9 @@ pub trait StateInfo {
     /// Otherwise, this can fail (but may not) if the DB prunes state or the block
     /// is unknown.
     fn state_at(&self, id: BlockId) -> Option<TopLevelState>;
+}
+
+/// Provides methods to control to help debug
+pub trait DevelClient {
+    fn last_term_end(&self) -> Option<TermEnd>;
 }

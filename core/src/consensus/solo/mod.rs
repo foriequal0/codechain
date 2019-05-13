@@ -25,6 +25,7 @@ use super::stake;
 use super::validator_set;
 use super::{ConsensusEngine, Seal};
 use crate::block::{ExecutedBlock, IsBlock};
+use crate::blockchain::TermEnd;
 use crate::codechain_machine::CodeChainMachine;
 use crate::consensus::EngineType;
 use crate::error::Error;
@@ -80,6 +81,14 @@ impl ConsensusEngine for Solo<CodeChainMachine> {
 
     fn verify_local_seal(&self, _header: &Header) -> Result<(), Error> {
         Ok(())
+    }
+
+    fn is_term_end(&self, chain_head: &Header, last_term_end: Option<TermEnd>) -> Option<u64> {
+        if chain_head.number() % 5 == 4 {
+            last_term_end.map(|x| x.term_id + 1).or(Some(0))
+        } else {
+            None
+        }
     }
 
     fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<(), Error> {

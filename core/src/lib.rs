@@ -86,7 +86,7 @@ pub use crate::block::Block;
 pub use crate::client::Error::Database;
 pub use crate::client::{
     AccountData, AssetClient, BlockChainClient, BlockChainTrait, ChainNotify, Client, ClientConfig, DatabaseClient,
-    EngineClient, EngineInfo, ExecuteClient, ImportBlock, MiningBlockChainClient, Shard, StateInfo,
+    DevelClient, EngineClient, EngineInfo, ExecuteClient, ImportBlock, MiningBlockChainClient, Shard, StateInfo,
     TestBlockChainClient, TextClient,
 };
 pub use crate::consensus::{EngineType, TimeGapParams};
