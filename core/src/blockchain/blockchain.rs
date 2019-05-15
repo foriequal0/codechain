@@ -35,9 +35,11 @@ use crate::encoded;
 use crate::invoice::Invoice;
 use crate::transaction::LocalizedTransaction;
 use crate::views::{BlockView, HeaderView};
+use blockchain::TermEnd;
 
 const BEST_BLOCK_KEY: &[u8] = b"best-block";
 const BEST_PROPOSAL_BLOCK_KEY: &[u8] = b"best-proposal-block";
+const LAST_TERM_END_KEY: &[u8] = b"last-term-id";
 
 /// Structure providing fast access to blockchain data.
 ///
@@ -51,6 +53,8 @@ pub struct BlockChain {
     headerchain: HeaderChain,
     body_db: BodyDB,
     invoice_db: InvoiceDB,
+
+    db: Arc<KeyValueDB>,
 
     pending_best_block_hash: RwLock<Option<H256>>,
     pending_best_proposal_block_hash: RwLock<Option<H256>>,
@@ -92,6 +96,8 @@ impl BlockChain {
             headerchain: HeaderChain::new(&genesis_block.header_view(), db.clone()),
             body_db: BodyDB::new(&genesis_block, db.clone()),
             invoice_db: InvoiceDB::new(db.clone()),
+
+            db,
 
             pending_best_block_hash: RwLock::new(None),
             pending_best_proposal_block_hash: RwLock::new(None),
@@ -335,6 +341,21 @@ impl BlockChain {
 
     pub fn best_proposal_header(&self) -> encoded::Header {
         self.headerchain.best_proposal_header()
+    }
+
+    pub fn update_last_term_end(&self, batch: &mut DBTransaction, term_id: u64, block_number: u64) {
+        let term_end = TermEnd {
+            term_id,
+            block_number,
+        };
+        let rlp = rlp::encode(&term_end);
+        batch.put(db::COL_EXTRA, LAST_TERM_END_KEY, &rlp);
+    }
+
+    pub fn last_term_end(&self) -> Option<TermEnd> {
+        let data =
+            self.db.get(db::COL_EXTRA, LAST_TERM_END_KEY).expect("Low level database error. Some issue with disk?")?;
+        Some(rlp::decode(&data))
     }
 }
 

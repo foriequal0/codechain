@@ -182,6 +182,12 @@ impl SubAssign for TransactionAddresses {
     }
 }
 
+#[derive(RlpEncodable, RlpDecodable)]
+pub struct TermEnd {
+    pub term_id: u64,
+    pub block_number: u64,
+}
+
 #[cfg(test)]
 mod tests {
     use rlp::rlp_encode_and_decode_test;
