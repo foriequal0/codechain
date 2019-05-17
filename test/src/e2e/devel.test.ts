@@ -18,9 +18,9 @@ import { expect } from "chai";
 import "mocha";
 import CodeChain from "../helper/spawn";
 
-describe("development RPCs", function () {
+describe("development RPCs", function() {
     let node: CodeChain;
-    before(async function () {
+    before(async function() {
         node = new CodeChain({ argv: ["--force-sealing"] });
         await node.start();
     });
@@ -29,31 +29,37 @@ describe("development RPCs", function () {
         return await node.sdk.rpc.sendRpcRequest("devel_lastTermEnd", []);
     }
 
-    it("should end term every 5 blocks", async function () {
-        const testRanges = [{
-            from: 0,
-            to: 3,
-            lastTermEnd: null,
-        }, {
-            from: 4,
-            to: 8,
-            lastTermEnd: [0, 4],
-        }, {
-            from: 9,
-            to: 13,
-            lastTermEnd: [1, 9],
-        }];
+    it("should end term every 5 blocks", async function() {
+        const testRanges = [
+            {
+                from: 0,
+                to: 3,
+                lastTermEnd: null
+            },
+            {
+                from: 4,
+                to: 8,
+                lastTermEnd: [0, 4]
+            },
+            {
+                from: 9,
+                to: 13,
+                lastTermEnd: [1, 9]
+            }
+        ];
 
         for (const { from, to, lastTermEnd } of testRanges) {
             for (let i = from; i <= to; i++) {
-                expect(await node.sdk.rpc.chain.getBestBlockNumber()).to.be.equal(i);
+                expect(
+                    await node.sdk.rpc.chain.getBestBlockNumber()
+                ).to.be.equal(i);
                 expect(await getLastTermEnd()).to.be.deep.equal(lastTermEnd);
                 await node.sdk.rpc.devel.startSealing();
             }
         }
     });
 
-    after(async function () {
+    after(async function() {
         await node.clean();
     });
 });
