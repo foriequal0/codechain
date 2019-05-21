@@ -23,11 +23,11 @@ use std::ops::Deref;
 use std::sync::Arc;
 
 use ckey::Address;
-use cstate::{ActionHandler, StateResult, TopLevelState};
+use cstate::{ActionHandler, StateResult, TopLevelState, TopState};
 use ctypes::errors::{RuntimeError, SyntaxError};
 use rlp::{Decodable, UntrustedRlp};
 
-use self::action_data::{Delegation, StakeAccount, Stakeholders};
+use self::action_data::{Candidates, Delegation, StakeAccount, Stakeholders};
 use self::actions::Action;
 pub use self::distribute::fee_distribute;
 use consensus::ValidatorSet;
@@ -113,7 +113,16 @@ impl ActionHandler for Stake {
                 if self.enable_delegations {
                     revoke(state, sender, &address, quantity)
                 } else {
-                    Err(RuntimeError::FailedToHandleCustomAction("DelegateCCS is disabled".to_string()).into())
+                    Err(RuntimeError::FailedToHandleCustomAction("Revoke is disabled".to_string()).into())
+                }
+            }
+            Action::SelfNominate {
+                deposit,
+            } => {
+                if self.enable_delegations {
+                    self_nominate(state, sender, deposit, 0)
+                } else {
+                    Err(RuntimeError::FailedToHandleCustomAction("SelfNominate is disabled".to_string()).into())
                 }
             }
         }
@@ -180,6 +189,23 @@ fn revoke(state: &mut TopLevelState, sender: &Address, delegatee: &Address, quan
     Ok(())
 }
 
+fn self_nominate(
+    state: &mut TopLevelState,
+    sender: &Address,
+    deposit: u64,
+    nomination_ends_at: u64,
+) -> StateResult<()> {
+    // TODO: proper handling of get_current_term
+    // TODO: proper handling of NOMINATE_EXPIRATION
+    // TODO: check banned accounts
+    // TODO: check jailed accounts
+    let mut deposits = Candidates::load_from_state(&state)?;
+    deposits.add_deposit(*sender, deposit, nomination_ends_at);
+    state.sub_balance(sender, deposit)?;
+    deposits.save_to_state(state)?;
+    Ok(())
+}
+
 pub fn get_stakes(state: &TopLevelState) -> StateResult<HashMap<Address, u64>> {
     let stakeholders = Stakeholders::load_from_state(state)?;
     let mut result = HashMap::new();
@@ -189,6 +215,25 @@ pub fn get_stakes(state: &TopLevelState) -> StateResult<HashMap<Address, u64>> {
         result.insert(*stakeholder, account.balance + delegation.sum());
     }
     Ok(result)
+}
+
+#[allow(dead_code)]
+pub fn on_term_close(state: &mut TopLevelState, current_term: u64) -> StateResult<()> {
+    // TODO: total_slash = slash_unresponsive(headers, pending_rewards)
+    // TODO: pending_rewards.update(signature_reward(blocks, total_slash))
+
+    let mut deposits = Candidates::load_from_state(state)?;
+    let expired_candidates = deposits.remove_expired_candidates(current_term);
+    for candidate in expired_candidates.into_iter() {
+        state.add_balance(&candidate.address, candidate.deposit)?;
+    }
+    deposits.save_to_state(state)?;
+
+    // TODO: auto_withdraw(pending_rewards)
+    // TODO: kick(jailed)
+
+    // TODO: validators, validator_order = elect()
+    Ok(())
 }
 
 #[cfg(test)]
@@ -556,5 +601,78 @@ mod tests {
         let delegator_account = StakeAccount::load_from_state(&state, &delegator).unwrap();
         assert_eq!(delegator_account.balance, 100);
         assert_eq!(state.action_data(&get_delegation_key(&delegator)).unwrap(), None);
+    }
+
+    #[test]
+    fn self_nominate_deposit_test() {
+        let mut state = helpers::get_temp_state();
+        let stake = Stake::new(HashMap::new(), new_validator_set(Vec::new()));
+        stake.init(&mut state).unwrap();
+
+        let address = Address::random();
+        state.add_balance(&address, 1000).unwrap();
+
+        // TODO: change with stake.execute()
+        assert_eq!(Ok(()), self_nominate(&mut state, &address, 0, 5));
+        assert_eq!(1000, state.balance(&address).unwrap());
+        let candidates = Candidates::load_from_state(&state).unwrap();
+        let candidate = candidates.get_candidate(address).expect("Candidate should exist even if it deposits 0");
+        assert_eq!(0, candidate.deposit);
+        assert_eq!(
+            5, candidate.nomination_ends_at,
+            "nomination_ends_at should be updated even if candidate deposits 0"
+        );
+
+        assert_eq!(Ok(()), self_nominate(&mut state, &address, 100, 10));
+        assert_eq!(900, state.balance(&address).unwrap());
+        let candidates = Candidates::load_from_state(&state).unwrap();
+        let candidate = candidates.get_candidate(address).unwrap();
+        assert_eq!(100, candidate.deposit);
+        assert_eq!(10, candidate.nomination_ends_at);
+
+        assert_eq!(Ok(()), self_nominate(&mut state, &address, 100, 20));
+        assert_eq!(800, state.balance(&address).unwrap());
+        let candidates = Candidates::load_from_state(&state).unwrap();
+        let candidate = candidates.get_candidate(address).unwrap();
+        assert_eq!(200, candidate.deposit);
+        assert_eq!(20, candidate.nomination_ends_at);
+
+        assert_eq!(Ok(()), self_nominate(&mut state, &address, 0, 30));
+        assert_eq!(800, state.balance(&address).unwrap());
+        let candidates = Candidates::load_from_state(&state).unwrap();
+        let candidate = candidates.get_candidate(address).unwrap();
+        assert_eq!(200, candidate.deposit);
+        assert_eq!(
+            30, candidate.nomination_ends_at,
+            "nomination_ends_at should be updated even if candidate deposits 0"
+        );
+
+        assert_eq!(Ok(()), on_term_close(&mut state, 20));
+        assert_eq!(800, state.balance(&address).unwrap(), "Keep balance before expiration");
+        let candidates = Candidates::load_from_state(&state).unwrap();
+        let candidate = candidates.get_candidate(address).unwrap();
+        assert_eq!(200, candidate.deposit, "Keep deposit before expiration");
+        assert_eq!(30, candidate.nomination_ends_at, "Keep expiration before expiration");
+
+        assert_eq!(Ok(()), on_term_close(&mut state, 30));
+        assert_eq!(1000, state.balance(&address).unwrap(), "Return deposit after expiration");
+        let candidates = Candidates::load_from_state(&state).unwrap();
+        assert!(candidates.get_candidate(address).is_none(), "Removed from candidates after expiration");
+    }
+
+    #[test]
+    fn self_nominate_fail_with_insufficient_balance() {
+        let mut state = helpers::get_temp_state();
+        let stake = Stake::new(HashMap::new(), new_validator_set(Vec::new()));
+        stake.init(&mut state).unwrap();
+
+        let address = Address::random();
+        state.add_balance(&address, 1000).unwrap();
+
+        // TODO: change with stake.execute()
+        assert!(
+            self_nominate(&mut state, &address, 2000, 5).is_err(),
+            "Cannot self-nominate without a sufficient balance"
+        );
     }
 }
