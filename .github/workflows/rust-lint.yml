@@ -1,0 +1,32 @@
+on: [push, pull_request]
+
+name: Rust Lints
+
+jobs:
+  clippy:
+    name: Clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - uses: actions-rs/toolchain@v1
+        with:
+            toolchain: nightly-2019-05-17
+            override: true
+      - uses: actions-rs/cargo@v1
+        with:
+          command: clippy
+          args: --all --all-targets -- -D warnings
+
+  rustfmt:
+    name: Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - uses: actions-rs/toolchain@v1
+        with:
+            toolchain: nightly-2019-05-17
+            override: true
+      - uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: -- --check

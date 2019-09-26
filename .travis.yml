@@ -85,25 +85,15 @@ jobs:
       after_failure:
         - test $INT_TEST_FLAG && ./upload_logs.sh
     - os: linux
-      name: static
+      name: test-lint
       before_install:
         - SKIP=`.travis/check-mergify-merge` && if [[ "$SKIP" = "skip" ]]; then exit 0; fi
         - SKIP=`.travis/check-change '^spec/|\.md$'` && if [[ "$SKIP" = "skip" ]]; then exit 0; fi
-        - SKIP=`.travis/check-change '^test/'` && if [[ "$SKIP" = "noskip" ]]; then CHECK_RUST=1; fi
       install:
-        - if [[ $CHECK_RUST ]]; then
-            rustup toolchain install nightly-2019-05-17 || exit 1;
-            rustup component add rustfmt --toolchain nightly-2019-05-17 || exit 1;
-            rustup component add clippy --toolchain nightly-2019-05-17 || exit 1;
-          fi
         - nvm install 10
         - nvm use 10
         - npm install -g yarn
       script:
-        - if [[ $CHECK_RUST ]]; then
-            cargo +nightly-2019-05-17 fmt -- --check || FAILED=1;
-            cargo +nightly-2019-05-17 clippy --all --all-targets -- -D warnings || FAILED=1;
-          fi; test ! $FAILED
         - cd test && yarn && yarn lint
     - stage: deploy
       name: deploy
